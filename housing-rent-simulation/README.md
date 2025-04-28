@@ -17,6 +17,13 @@ The simulation models a housing market with the following key components:
   - Listed price
   - Landlord quality score
 
+## Desired Outcome
+
+For each scenario, the simulation should determine the average rank assinged by
+the renter to the property in relation to the rank of the property.
+
+The
+
 ## Simulation Scenarios
 
 The simulation runs through four different scenarios where renters have varying
@@ -29,14 +36,16 @@ levels of information:
 4. **Actual Fair Price + Landlord Score**: Renters see the exact fair price
    combined with landlord quality score
 
-## Assignment Process
+## Simulation Process
 
 In each simulation:
 
-1. Renters rank properties they can afford based on available information
-2. Properties with the most bids are evaluated first
-3. The most stable, highest income earner is assigned to each property
-4. The maximum possible price is recorded for each assignment
+1. Renters rank properties they can afford based on available information and
+   bid on them
+2. For each property calculate the average rank
+
+3. Each renter is ranked for every property they bid on
+4. assign renters and properties to minimize the proerty and renter ranks
 
 ## Installation
 

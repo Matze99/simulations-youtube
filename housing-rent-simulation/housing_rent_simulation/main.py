@@ -1,22 +1,24 @@
 import random
-from typing import List
+
 from housing_rent_simulation.models.renter import Renter
 from housing_rent_simulation.models.property import Property
+from housing_rent_simulation.simulation.base import BaseSimulation
 from housing_rent_simulation.simulation.scenarios import (
     NoisyFairPriceSimulation,
     ActualFairPriceSimulation,
     NoisyFairPriceWithLandlordScoreSimulation,
     ActualFairPriceWithLandlordScoreSimulation,
 )
+from housing_rent_simulation.constants import MIN_RENT, MAX_RENT
 
 
-def generate_random_renters(count: int) -> List[Renter]:
+def generate_random_renters(count: int) -> list[Renter]:
     """Generate a list of random renters."""
     renters = []
     for i in range(count):
-        min_price = random.uniform(500, 1000)
+        min_price = random.uniform(MIN_RENT, MAX_RENT)
         max_price = random.uniform(min_price * 1.5, min_price * 2.5)
-        income = random.uniform(max_price * 10, max_price * 20)
+        income = random.uniform(max_price * 2, max_price * 10)
         job_stability = random.uniform(0.5, 1.0)
         renters.append(
             Renter(
@@ -30,11 +32,11 @@ def generate_random_renters(count: int) -> List[Renter]:
     return renters
 
 
-def generate_random_properties(count: int) -> List[Property]:
+def generate_random_properties(count: int) -> list[Property]:
     """Generate a list of random properties."""
     properties = []
     for i in range(count):
-        fair_price = random.uniform(800, 2000)
+        fair_price = random.uniform(MIN_RENT, MAX_RENT)
         listed_price = random.uniform(fair_price * 0.9, fair_price * 1.1)
         landlord_quality = random.uniform(0.5, 1.0)
         properties.append(
@@ -48,9 +50,9 @@ def generate_random_properties(count: int) -> List[Property]:
     return properties
 
 
-def run_simulations(renters: List[Renter], properties: List[Property]) -> None:
+def run_simulations(renters: list[Renter], properties: list[Property]) -> None:
     """Run all simulation scenarios and display results."""
-    scenarios = [
+    scenarios: list[tuple[str, BaseSimulation]] = [
         (
             "Noisy Fair Price",
             NoisyFairPriceSimulation(renters, properties, noise_level=0.1),
@@ -72,7 +74,10 @@ def run_simulations(renters: List[Renter], properties: List[Property]) -> None:
     print("=" * 50)
 
     for name, simulation in scenarios:
-        result = simulation.run_simulation()
+        result = simulation.get_average_rank()
+
+        # landlord score vs average rank
+
         print(f"\n{name}")
         print("-" * 30)
         print(f"Total Assignments: {result.total_assignments}")
@@ -81,15 +86,17 @@ def run_simulations(renters: List[Renter], properties: List[Property]) -> None:
 
         # Print some example assignments
         print("\nExample Assignments:")
-        for prop_id, renter_id, price in result.assignments[:3]:
-            print(f"Property {prop_id} -> Renter {renter_id} at ${price:,.2f}")
+        for assignment in result.assignments[:3]:
+            print(
+                f"Property {assignment.property_id} -> Renter {assignment.renter_id} at ${assignment.price:,.2f}"
+            )
 
 
 def main():
     """Main entry point for the simulation."""
     # Generate random renters and properties
-    renters = generate_random_renters(100)
-    properties = generate_random_properties(50)
+    renters = generate_random_renters(10)
+    properties = generate_random_properties(8)
 
     # Run all simulation scenarios
     run_simulations(renters, properties)

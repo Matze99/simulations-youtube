@@ -1,4 +1,3 @@
-from typing import List, Dict, Tuple
 from dataclasses import dataclass
 from housing_rent_simulation.models.renter import Renter
 from housing_rent_simulation.models.property import Property
@@ -8,16 +7,24 @@ from housing_rent_simulation.models.property import Property
 class SimulationResult:
     """Results of a simulation run."""
 
+    @dataclass
+    class Assignment:
+        """An assignment of a renter to a property."""
+
+        property_id: int
+        renter_id: int
+        price: float
+
     total_assignments: int
     total_revenue: float
     average_price: float
-    assignments: List[Tuple[int, int, float]]  # (property_id, renter_id, price)
+    assignments: list[Assignment]
 
 
 class BaseSimulation:
     """Base class for housing market simulations."""
 
-    def __init__(self, renters: List[Renter], properties: List[Property]):
+    def __init__(self, renters: list[Renter], properties: list[Property]):
         """
         Initialize the simulation with renters and properties.
 
@@ -29,96 +36,66 @@ class BaseSimulation:
         self.properties = properties
         self._reset_simulation()
 
+    def _get_scored_property(
+        self, renter: Renter, _property: Property
+    ) -> tuple[float, Property]:
+        """
+        Get the scored property for a given renter.
+        """
+        raise NotImplementedError("Subclasses must implement this method.")
+
+    def get_ranked_properties(self, renter: Renter) -> list[tuple[float, Property]]:
+        """
+        Get properties sorted by their score for a given renter.
+
+        Args:
+            renter: The renter to get the scored properties for
+
+        Returns:
+            List of properties sorted by their score
+        """
+        scored_properties = sorted(
+            [
+                self._get_scored_property(renter, _property)
+                for _property in self.properties
+                if renter.can_afford(_property)
+            ],
+            key=lambda x: x[0],
+            reverse=True,
+        )
+
+        return [property for _, property in scored_properties]
+
     def _reset_simulation(self) -> None:
         """Reset the simulation state."""
         for renter in self.renters:
             renter.assigned_property = None
-        for property in self.properties:
-            property.assigned_renter = None
-            property.max_possible_price = None
+        for _property in self.properties:
+            _property.assigned_renter = None
+            _property.max_possible_price = None
 
-    def _get_property_bids(self) -> Dict[int, List[Renter]]:
+    def _get_property_ranks(self) -> dict[int, list[int]]:
         """
-        Get all bids for each property.
+        Get the ranks of each property for each renter.
 
         Returns:
-            Dictionary mapping property IDs to lists of bidding renters
+            Dictionary mapping property IDs to lists of ranks
         """
-        bids: Dict[int, List[Renter]] = {p.id: [] for p in self.properties}
+        ranks: dict[int, list[int]] = {p.id: [] for p in self.properties}
 
         for renter in self.renters:
-            if renter.assigned_property is None:  # Only consider unassigned renters
-                for property in self.properties:
-                    if property.is_available() and renter.bid_on_property(property):
-                        bids[property.id].append(renter)
+            ranked_properties = self.get_ranked_properties(renter)
+            for i, _property in enumerate(ranked_properties):
+                ranks[_property.id].append(i)
 
-        return bids
+        return ranks
 
-    def _assign_property(self, property: Property, bidders: List[Renter]) -> None:
+    def get_average_rank(self) -> dict[int, float]:
         """
-        Assign the most suitable renter to a property.
-
-        Args:
-            property: The property to assign
-            bidders: List of renters bidding on the property
+        Get the average rank of each property.
         """
-        if not bidders:
-            return
-
-        # Sort bidders by job stability and income (descending)
-        sorted_bidders = sorted(
-            bidders, key=lambda r: (r.job_stability, r.income), reverse=True
-        )
-
-        best_renter = sorted_bidders[0]
-        property.assign_renter(best_renter.id, best_renter.max_price)
-        best_renter.assigned_property = property.id
-
-    def run_simulation(self) -> SimulationResult:
-        """
-        Run the simulation and return the results.
-
-        Returns:
-            SimulationResult containing the results of the simulation
-        """
-        self._reset_simulation()
-        assignments = []
-
-        while True:
-            bids = self._get_property_bids()
-            if not any(bids.values()):  # No more bids
-                break
-
-            # Sort properties by number of bids (descending)
-            sorted_properties = sorted(
-                self.properties, key=lambda p: len(bids[p.id]), reverse=True
-            )
-
-            for property in sorted_properties:
-                if property.is_available() and bids[property.id]:
-                    self._assign_property(property, bids[property.id])
-                    assignments.append(
-                        (
-                            property.id,
-                            property.assigned_renter,
-                            property.max_possible_price,
-                        )
-                    )
-
-        # Calculate results
-        total_revenue = sum(
-            p.max_possible_price
-            for p in self.properties
-            if p.max_possible_price is not None
-        )
-        total_assignments = len(assignments)
-        average_price = (
-            total_revenue / total_assignments if total_assignments > 0 else 0
-        )
-
-        return SimulationResult(
-            total_assignments=total_assignments,
-            total_revenue=total_revenue,
-            average_price=average_price,
-            assignments=assignments,
-        )
+        ranks = self._get_property_ranks()
+        return {
+            property_id: sum(ranks[property_id]) / len(ranks[property_id])
+            for property_id in ranks
+        }
