@@ -34,6 +34,7 @@ class BaseSimulation:
         """
         self.renters = renters
         self.properties = properties
+        self.properties_map = {p.id: p for p in properties}
         self._reset_simulation()
 
     def _get_scored_property(
@@ -58,7 +59,7 @@ class BaseSimulation:
             [
                 self._get_scored_property(renter, _property)
                 for _property in self.properties
-                if renter.can_afford(_property)
+                if renter.can_afford(_property.listed_price)
             ],
             key=lambda x: x[0],
             reverse=True,

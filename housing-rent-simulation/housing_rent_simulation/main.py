@@ -1,5 +1,7 @@
 import random
 
+import matplotlib.pyplot as plt
+
 from housing_rent_simulation.models.renter import Renter
 from housing_rent_simulation.models.property import Property
 from housing_rent_simulation.simulation.base import BaseSimulation
@@ -73,30 +75,50 @@ def run_simulations(renters: list[Renter], properties: list[Property]) -> None:
     print("\nHousing Rent Simulation Results")
     print("=" * 50)
 
-    for name, simulation in scenarios:
+    figure = plt.figure(figsize=(15, 10))
+    figure.suptitle(
+        "Landlord Quality vs Average Rank Across Different Scenarios", fontsize=16
+    )
+
+    for idx, (name, simulation) in enumerate(scenarios, 1):
         result = simulation.get_average_rank()
 
         # landlord score vs average rank
+        landlord_scores, average_ranks = [], []
+        for _id, avg_rank in result.items():
+            landlord_scores.append(simulation.properties_map[_id].landlord_quality)
+            average_ranks.append(avg_rank)
 
-        print(f"\n{name}")
-        print("-" * 30)
-        print(f"Total Assignments: {result.total_assignments}")
-        print(f"Total Revenue: ${result.total_revenue:,.2f}")
-        print(f"Average Price: ${result.average_price:,.2f}")
+        # Create subplot
+        ax = figure.add_subplot(2, 2, idx)
+        ax.scatter(landlord_scores, average_ranks, alpha=0.6)
+        ax.set_title(name)
+        ax.set_xlabel("Landlord Quality Score")
+        ax.set_ylabel("Average Rank")
+        ax.grid(True, alpha=0.3)
 
-        # Print some example assignments
-        print("\nExample Assignments:")
-        for assignment in result.assignments[:3]:
-            print(
-                f"Property {assignment.property_id} -> Renter {assignment.renter_id} at ${assignment.price:,.2f}"
-            )
+        # print(f"\n{name}")
+        # print("-" * 30)
+        # print(f"Total Assignments: {result.total_assignments}")
+        # print(f"Total Revenue: ${result.total_revenue:,.2f}")
+        # print(f"Average Price: ${result.average_price:,.2f}")
+
+        # # Print some example assignments
+        # print("\nExample Assignments:")
+        # for assignment in result.assignments[:3]:
+        #     print(
+        #         f"Property {assignment.property_id} -> Renter {assignment.renter_id} at ${assignment.price:,.2f}"
+        #     )
+
+    plt.tight_layout()
+    plt.show()
 
 
 def main():
     """Main entry point for the simulation."""
     # Generate random renters and properties
-    renters = generate_random_renters(10)
-    properties = generate_random_properties(8)
+    renters = generate_random_renters(200)
+    properties = generate_random_properties(160)
 
     # Run all simulation scenarios
     run_simulations(renters, properties)
