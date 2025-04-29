@@ -11,16 +11,16 @@ from housing_rent_simulation.simulation.scenarios import (
     NoisyFairPriceWithLandlordScoreSimulation,
     ActualFairPriceWithLandlordScoreSimulation,
 )
-from housing_rent_simulation.constants import MIN_RENT, MAX_RENT
+from housing_rent_simulation.constants import MIN_RENT, MAX_RENT, MIN_INCOME, MAX_INCOME
 
 
 def generate_random_renters(count: int) -> list[Renter]:
     """Generate a list of random renters."""
     renters = []
     for i in range(count):
-        min_price = random.uniform(MIN_RENT, MAX_RENT)
-        max_price = random.uniform(min_price * 1.5, min_price * 2.5)
-        income = random.uniform(max_price * 2, max_price * 10)
+        min_price = MIN_RENT
+        income = random.uniform(MIN_INCOME, MAX_INCOME)
+        max_price = income / 3
         job_stability = random.uniform(0.5, 1.0)
         renters.append(
             Renter(
@@ -75,41 +75,57 @@ def run_simulations(renters: list[Renter], properties: list[Property]) -> None:
     print("\nHousing Rent Simulation Results")
     print("=" * 50)
 
-    figure = plt.figure(figsize=(15, 10))
-    figure.suptitle(
+    # Create two figures
+    figure1 = plt.figure(figsize=(15, 10))
+    figure1.suptitle(
         "Landlord Quality vs Average Rank Across Different Scenarios", fontsize=16
     )
 
+    figure2 = plt.figure(figsize=(15, 10))
+    figure2.suptitle(
+        "Landlord Quality vs Maximum Possible Rent Across Different Scenarios",
+        fontsize=16,
+    )
+
     for idx, (name, simulation) in enumerate(scenarios, 1):
-        result = simulation.get_average_rank()
+        # Run the simulation to get assignments
+        result = simulation.match_renters_to_properties()
+
+        # Get average ranks
+        avg_ranks = simulation.get_average_rank()
 
         # landlord score vs average rank
         landlord_scores, average_ranks = [], []
-        for _id, avg_rank in result.items():
+        for _id, avg_rank in avg_ranks.items():
             landlord_scores.append(simulation.properties_map[_id].landlord_quality)
             average_ranks.append(avg_rank)
 
-        # Create subplot
-        ax = figure.add_subplot(2, 2, idx)
-        ax.scatter(landlord_scores, average_ranks, alpha=0.6)
-        ax.set_title(name)
-        ax.set_xlabel("Landlord Quality Score")
-        ax.set_ylabel("Average Rank")
-        ax.grid(True, alpha=0.3)
+        # Create subplot for rank vs quality
+        ax1 = figure1.add_subplot(2, 2, idx)
+        ax1.scatter(landlord_scores, average_ranks, alpha=0.6)
+        ax1.set_title(name)
+        ax1.set_xlabel("Landlord Quality Score")
+        ax1.set_ylabel("Average Rank")
+        ax1.grid(True, alpha=0.3)
 
-        # print(f"\n{name}")
-        # print("-" * 30)
-        # print(f"Total Assignments: {result.total_assignments}")
-        # print(f"Total Revenue: ${result.total_revenue:,.2f}")
-        # print(f"Average Price: ${result.average_price:,.2f}")
+        # landlord score vs max possible rent
+        landlord_scores, max_rents = [], []
+        for assignment in result:
+            _property = simulation.properties_map[assignment.property_id]
+            landlord_scores.append(_property.landlord_quality)
+            max_rents.append(_property.max_possible_price)
 
-        # # Print some example assignments
-        # print("\nExample Assignments:")
-        # for assignment in result.assignments[:3]:
-        #     print(
-        #         f"Property {assignment.property_id} -> Renter {assignment.renter_id} at ${assignment.price:,.2f}"
-        #     )
+        # Create subplot for max rent vs quality
+        ax2 = figure2.add_subplot(2, 2, idx)
+        ax2.scatter(landlord_scores, max_rents, alpha=0.6)
+        ax2.set_title(name)
+        ax2.set_xlabel("Landlord Quality Score")
+        ax2.set_ylabel("Maximum Possible Rent ($)")
+        ax2.grid(True, alpha=0.3)
 
+    plt.figure(figure1.number)
+    plt.tight_layout()
+    plt.figure(figure2.number)
     plt.tight_layout()
     plt.show()
 
@@ -117,8 +133,8 @@ def run_simulations(renters: list[Renter], properties: list[Property]) -> None:
 def main():
     """Main entry point for the simulation."""
     # Generate random renters and properties
-    renters = generate_random_renters(200)
-    properties = generate_random_properties(160)
+    renters = generate_random_renters(100)
+    properties = generate_random_properties(200)
 
     # Run all simulation scenarios
     run_simulations(renters, properties)
