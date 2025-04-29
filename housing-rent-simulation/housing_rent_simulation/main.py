@@ -40,7 +40,7 @@ def generate_random_properties(count: int) -> list[Property]:
     for i in range(count):
         fair_price = random.uniform(MIN_RENT, MAX_RENT)
         listed_price = random.uniform(fair_price * 0.9, fair_price * 1.1)
-        landlord_quality = random.uniform(0.5, 1.0)
+        landlord_quality = random.uniform(0.0, 1.0)
         properties.append(
             Property(
                 id=i,
@@ -110,14 +110,17 @@ def run_simulations(renters: list[Renter], properties: list[Property]) -> None:
 
         # landlord score vs max possible rent
         landlord_scores, max_rents = [], []
-        for assignment in result:
+        combined_results = []
+        for assignment in result.assignments:
             _property = simulation.properties_map[assignment.property_id]
-            landlord_scores.append(_property.landlord_quality)
-            max_rents.append(_property.max_possible_price)
+            renter = simulation.renters_map[assignment.renter_id]
+            combined_results.append((_property.landlord_quality, renter.max_price))
+        combined_results.sort(key=lambda x: x[0])
+        landlord_scores, max_rents = zip(*combined_results)
 
         # Create subplot for max rent vs quality
         ax2 = figure2.add_subplot(2, 2, idx)
-        ax2.scatter(landlord_scores, max_rents, alpha=0.6)
+        ax2.plot(landlord_scores, max_rents, alpha=0.6)
         ax2.set_title(name)
         ax2.set_xlabel("Landlord Quality Score")
         ax2.set_ylabel("Maximum Possible Rent ($)")
@@ -130,15 +133,61 @@ def run_simulations(renters: list[Renter], properties: list[Property]) -> None:
     plt.show()
 
 
+def run_debug():
+    renters = [
+        Renter(id=0, min_price=1000, max_price=3000, income=10000, job_stability=0.5),
+        Renter(id=1, min_price=1000, max_price=3000, income=10000, job_stability=0.5),
+        Renter(id=2, min_price=1000, max_price=9000, income=20000, job_stability=0.5),
+    ]
+    properties = [
+        Property(id=0, fair_price=3000, listed_price=3000, landlord_quality=0),
+        Property(id=1, fair_price=1500, listed_price=1500, landlord_quality=1),
+    ]
+
+    simulation = ActualFairPriceWithLandlordScoreSimulation(renters, properties)
+    result = simulation.match_renters_to_properties()
+
+    for assignment in result.assignments:
+        renter = simulation.renters_map[assignment.renter_id]
+        _property = simulation.properties_map[assignment.property_id]
+        print(
+            f"assigning renter {assignment.renter_id} to property {assignment.property_id}: {renter.max_price} - {_property.landlord_quality}"
+        )
+
+
+def run_debug2():
+    renters = generate_random_renters(100)
+    properties = generate_random_properties(100)
+
+    simulation = ActualFairPriceWithLandlordScoreSimulation(renters, properties)
+    result = simulation.match_renters_to_properties()
+
+    values = []
+    for assignment in result.assignments:
+        renter = simulation.renters_map[assignment.renter_id]
+        _property = simulation.properties_map[assignment.property_id]
+        values.append(
+            (renter.id, _property.id, renter.max_price, _property.landlord_quality)
+        )
+
+    values.sort(key=lambda x: x[3])
+    for renter_id, property_id, max_price, landlord_quality in values:
+        print(
+            f"assigning renter {renter_id} to property {property_id}: {max_price} - {landlord_quality}"
+        )
+
+
 def main():
     """Main entry point for the simulation."""
     # Generate random renters and properties
-    renters = generate_random_renters(100)
-    properties = generate_random_properties(200)
+    renters = generate_random_renters(200)
+    properties = generate_random_properties(180)
 
     # Run all simulation scenarios
     run_simulations(renters, properties)
 
 
 if __name__ == "__main__":
+    # run_debug()
+    # run_debug2()
     main()

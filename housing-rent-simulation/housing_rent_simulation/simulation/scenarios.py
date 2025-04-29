@@ -55,11 +55,10 @@ class NoisyFairPriceWithLandlordScoreSimulation(NoisyFairPriceSimulation):
         Get the scored property for a given renter.
         """
         noisy_fair_price = _property.get_observed_price(self.noise_level)
-        landlord_score = (
-            LANDLORD_WEIGHT * _property.landlord_quality * (MAX_RENT - MIN_RENT)
-            + MIN_RENT
-        )
-        return noisy_fair_price + landlord_score, _property
+        landlord_score = LANDLORD_WEIGHT * _property.landlord_quality + (
+            noisy_fair_price - MIN_RENT
+        ) / (MAX_RENT - MIN_RENT)
+        return landlord_score, _property
 
 
 class ActualFairPriceWithLandlordScoreSimulation(ActualFairPriceSimulation):
@@ -71,8 +70,7 @@ class ActualFairPriceWithLandlordScoreSimulation(ActualFairPriceSimulation):
         """
         Get the scored property for a given renter.
         """
-        landlord_score = (
-            LANDLORD_WEIGHT * _property.landlord_quality * (MAX_RENT - MIN_RENT)
-            + MIN_RENT
-        )
-        return _property.fair_price + landlord_score, _property
+        landlord_score = LANDLORD_WEIGHT * _property.landlord_quality + (
+            _property.fair_price - MIN_RENT
+        ) / (MAX_RENT - MIN_RENT)
+        return landlord_score, _property

@@ -15,9 +15,6 @@ class SimulationResult:
         renter_id: int
         price: float
 
-    total_assignments: int
-    total_revenue: float
-    average_price: float
     assignments: list[Assignment]
 
 
@@ -76,19 +73,19 @@ class BaseSimulation:
             _property.assigned_renter = None
             _property.max_possible_price = None
 
-    def _get_property_ranks(self) -> dict[int, list[int]]:
+    def _get_property_ranks(self) -> dict[int, dict[int, int]]:
         """
         Get the ranks of each property for each renter.
 
         Returns:
-            Dictionary mapping property IDs to lists of ranks
+            Dictionary mapping property IDs to dictionaries of renter IDs to ranks
         """
-        ranks: dict[int, list[int]] = {p.id: [] for p in self.properties}
+        ranks: dict[int, dict[int, int]] = {p.id: {} for p in self.properties}
 
         for renter in self.renters:
             ranked_properties = self.get_ranked_properties(renter)
             for i, _property in enumerate(ranked_properties):
-                ranks[_property.id].append(i)
+                ranks[_property.id][renter.id] = i
 
         return ranks
 
@@ -98,18 +95,19 @@ class BaseSimulation:
         """
         ranks = self._get_property_ranks()
         return {
-            property_id: sum(ranks[property_id]) / (len(ranks[property_id]) + 1e-6)
+            property_id: sum(ranks[property_id].values())
+            / (len(ranks[property_id]) + 1e-6)
             for property_id in ranks
         }
 
-    def _get_renter_ranks(self) -> dict[int, list[int]]:
+    def _get_renter_ranks(self) -> dict[int, dict[int, int]]:
         """
         Get the ranks of each renter for each property they can afford.
 
         Returns:
-            Dictionary mapping renter IDs to lists of ranks
+            Dictionary mapping renter IDs to dictionaries of property IDs to ranks
         """
-        renter_ranks: dict[int, list[int]] = {r.id: [] for r in self.renters}
+        renter_ranks: dict[int, dict[int, int]] = {r.id: {} for r in self.renters}
 
         for _property in self.properties:
             # Get all renters who can afford this property
@@ -131,7 +129,7 @@ class BaseSimulation:
 
             # Record ranks
             for i, (_, renter) in enumerate(scored_renters):
-                renter_ranks[renter.id].append(i)
+                renter_ranks[renter.id][_property.id] = i
 
         return renter_ranks
 
@@ -142,18 +140,10 @@ class BaseSimulation:
         Returns:
             SimulationResult containing the assignments and statistics
         """
-        self._reset_simulation()
 
         # Get ranks for both properties and renters
         property_ranks = self._get_property_ranks()
-        property_ranks_mapping = {
-            k: {r_id: i for (i, r_id) in enumerate(v)}
-            for k, v in property_ranks.items()
-        }
         renter_ranks = self._get_renter_ranks()
-        renter_ranks_mapping = {
-            k: {p_id: i for (i, p_id) in enumerate(v)} for k, v in renter_ranks.items()
-        }
 
         # Create a list of all possible assignments with their combined rank
         possible_assignments = []
@@ -161,13 +151,13 @@ class BaseSimulation:
             for _property in self.properties:
                 if renter.can_afford(_property.listed_price):
                     # Calculate combined rank (lower is better)
-                    property_rank = property_ranks_mapping.get(
-                        _property.id, dict()
-                    ).get(renter.id, float("inf") - 1000)
-                    renter_rank = renter_ranks_mapping.get(renter.id, dict()).get(
+                    property_rank = property_ranks.get(_property.id, dict()).get(
+                        renter.id, float("inf") - 1000
+                    )
+                    renter_rank = renter_ranks.get(renter.id, dict()).get(
                         _property.id, float("inf") - 1000
                     )
-                    combined_rank = property_rank + 3 * renter_rank
+                    combined_rank = property_rank + renter_rank
 
                     possible_assignments.append((combined_rank, renter, _property))
 
@@ -201,4 +191,4 @@ class BaseSimulation:
                 assigned_renters.add(renter.id)
                 assigned_properties.add(_property.id)
 
-        return assignments
+        return SimulationResult(assignments=assignments)
